@@ -3,7 +3,7 @@ import { createGroq } from '@ai-sdk/groq';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { generateObject } from 'ai';
+import { generateObject, type LanguageModel } from 'ai';
 import { z } from 'zod';
 import type { FileManifest } from '@/types/file-manifest';
 
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     
     // Create a summary of available files for the AI
     const validFiles = Object.entries(manifest.files as Record<string, any>)
-      .filter(([path, info]) => {
+      .filter(([path]) => {
         // Filter out invalid paths
         return path.includes('.') && !path.match(/\/\d+$/);
       });
@@ -74,7 +74,6 @@ export async function POST(request: NextRequest) {
     const fileSummary = validFiles
       .map(([path, info]: [string, any]) => {
         const componentName = info.componentInfo?.name || path.split('/').pop();
-        const hasImports = info.imports?.length > 0;
         const childComponents = info.componentInfo?.childComponents?.join(', ') || 'none';
         return `- ${path} (${componentName}, renders: ${childComponents})`;
       })
@@ -94,20 +93,20 @@ export async function POST(request: NextRequest) {
     console.log('[analyze-edit-intent] File summary preview:', fileSummary.split('\n').slice(0, 5).join('\n'));
     
     // Select the appropriate AI model based on the request
-    let aiModel;
+    let aiModel: LanguageModel;
     if (model.startsWith('anthropic/')) {
-      aiModel = anthropic(model.replace('anthropic/', ''));
+      aiModel = anthropic(model.replace('anthropic/', '')) as LanguageModel;
     } else if (model.startsWith('openai/')) {
       if (model.includes('gpt-oss')) {
-        aiModel = groq(model);
+        aiModel = groq(model) as LanguageModel;
       } else {
-        aiModel = openai(model.replace('openai/', ''));
+        aiModel = openai(model.replace('openai/', '')) as LanguageModel;
       }
     } else if (model.startsWith('google/')) {
-      aiModel = createGoogleGenerativeAI(model.replace('google/', ''));
+      aiModel = createGoogleGenerativeAI(model.replace('google/', '')) as LanguageModel;
     } else {
       // Default to groq if model format is unclear
-      aiModel = groq(model);
+      aiModel = groq(model) as LanguageModel;
     }
     
     console.log('[analyze-edit-intent] Using AI model:', model);
@@ -177,4 +176,4 @@ Create a search plan to find the exact code that needs to be modified. Include s
       error: (error as Error).message
     }, { status: 500 });
   }
-}
+      }
